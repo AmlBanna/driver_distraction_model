@@ -8,295 +8,335 @@ import os
 from collections import Counter
 import tempfile
 import time
-from gtts import gTTS  # للتنبيه الصوتي
 import base64
+from gtts import gTTS
 
-# ================================
-# Page Config & Styling
-# ================================
-st.set_page_config(page_title="Driver Behavior Detection", page_icon="🚗", layout="centered")
-st.markdown("""
+# ==============================================================
+# 1. Page config + Fancy CSS
+# ==============================================================
+st.set_page_config(page_title="Driver Behavior AI", page_icon="🚗", layout="centered")
+
+st.markdown(
+    """
 <style>
-    .main-header {font-size: 2.8rem; font-weight: 700; color: #1E3A8A; text-align: center;}
-    .sub-header {font-size: 1.3rem; color: #4B5563; text-align: center; margin-bottom: 2rem;}
-    .status-box {padding: 1rem; border-radius: 12px; font-weight: bold; text-align:
-
-    .safe {background-color: #DCFCE7; color: #166534; border: 2px solid #BBF7D0;}
-    .danger {background-color: #FECACA; color: #991B1B; border: 2px solid #FCA5A5;}
-    .warning {background-color: #FEF3C7; color: #92400E; border: 2px solid #FDE68A;}
-    .info {background-color: #DBEAFE; color: #1E40AF; border: 2px solid #BFDBFE;}
-    .stButton>button {background-color: #1E3A8A; color: white; border-radius: 8px; padding: 0.6rem 1.2rem;}
-    .stButton>button:hover {background-color: #1E40AF;}
-    .footer {text-align: center; margin-top: 3rem; color: #6B7280; font-size: 0.9rem;}
-    .real-time-status {font-size: 1.5rem; font-weight: bold; text-align: center; padding: 0.8rem; border-radius: 10px; margin: 1rem 0;}
+    /* Main fonts & colors */
+    .big-title {font-size:3rem; font-weight:800; color:#1E3A8A; text-align:center;}
+    .subtitle {font-size:1.3rem; color:#4B5563; text-align:center; margin-bottom:2rem;}
+    .status-card {padding:1rem; border-radius:12px; font-weight:bold; text-align:center; margin:1rem 0;}
+    .safe {background:#DCFCE7; color:#166534; border:2px solid #BBF7D0;}
+    .danger {background:#FECACA; color:#991B1B; border:2px solid #FCA5A5;}
+    .warning {background:#FEF3C7; color:#92400E; border:2px solid #FDE68A;}
+    .info {background:#DBEAFE; color:#1E40AF; border:2px solid #BFDBFE;}
+    .real-time {font-size:1.6rem; font-weight:bold; text-align:center; padding:0.6rem; border-radius:10px; margin:0.8rem 0;}
+    .stButton>button {background:#1E3A8A; color:white; border-radius:8px; padding:0.6rem 1.2rem;}
+    .stButton>button:hover {background:#1E40AF;}
+    .footer {text-align:center; margin-top:3rem; color:#6B7280; font-size:0.9rem;}
+    .stats-box {background:#F8FAFC; padding:1.2rem; border-radius:12px; border:1px solid #E2E8F0;}
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
-# ================================
-# File Paths
-# ================================
+# ==============================================================
+# 2. Load model (cached)
+# ==============================================================
 current_dir = os.path.dirname(os.path.abspath(__file__))
-model_path = os.path.join(current_dir, 'driver_distraction_model.keras')
-json_path = os.path.join(current_dir, 'class_indices.json')
+model_path = os.path.join(current_dir, "driver_distraction_model.keras")
+json_path = os.path.join(current_dir, "class_indices.json")
 
-# ================================
-# Load Model
-# ================================
-@st.cache_resource(show_spinner="Loading AI model...")
+
+@st.cache_resource(show_spinner="Loading AI model…")
 def load_model():
     if not os.path.exists(model_path):
-        st.error("Model file not found! Please upload `driver_distraction_model.keras`")
+        st.error("`driver_distraction_model.keras` not found!")
         st.stop()
     if not os.path.exists(json_path):
-        st.error("Class indices file not found! Please upload `class_indices.json`")
+        st.error("`class_indices.json` not found!")
         st.stop()
-
     model = tf.keras.models.load_model(model_path)
-    with open(json_path, 'r') as f:
+    with open(json_path) as f:
         class_indices = json.load(f)
     idx_to_class = {v: k for k, v in class_indices.items()}
     predict_fn = tf.function(lambda x: model(x, training=False))
     return model, class_indices, idx_to_class, predict_fn
 
+
 model, class_indices, idx_to_class, predict_fn = load_model()
 
-# ================================
-# Classification Logic
-# ================================
+# ==============================================================
+# 3. Classification logic
+# ==============================================================
 def get_final_label(cls, conf):
-    if cls == 'c6' and conf > 0.30:
-        return 'drinking', 'High Risk'
-    if cls in ['c1', 'c2', 'c3', 'c4', 'c9'] and conf > 0.28:
-        return 'using_phone', 'High Risk'
-    if cls == 'c0' and conf > 0.5:
-        return 'safe_driving', 'Safe'
-    if cls == 'c7' and conf > 0.7:
-        return 'turning', 'Moderate Risk'
-    if cls == 'c8' and conf > 0.8:
-        return 'hair_makeup', 'High Risk'
-    if cls == 'c5' and conf > 0.6:
-        return 'radio', 'Moderate Risk'
-    return 'other_activity', 'Unknown'
+    if cls == "c6" and conf > 0.30:
+        return "drinking", "High Risk"
+    if cls in ["c1", "c2", "c3", "c4", "c9"] and conf > 0.28:
+        return "using_phone", "High Risk"
+    if cls == "c0" and conf > 0.5:
+        return "safe_driving", "Safe"
+    if cls == "c7" and conf > 0.7:
+        return "turning", "Moderate Risk"
+    if cls == "c8" and conf > 0.8:
+        return "hair_makeup", "High Risk"
+    if cls == "c5" and conf > 0.6:
+        return "radio", "Moderate Risk"
+    return "other_activity", "Unknown"
 
-# ================================
-# Preprocessing
-# ================================
+
 def preprocess(frame):
     img = cv2.resize(frame, (224, 224))
     img = img.astype(np.float32) / 255.0
     return np.expand_dims(img, axis=0)
 
-# ================================
-# Prediction with History & Alert
-# ================================
-history = []
-frame_count = 0
+
+# ==============================================================
+# 4. Prediction with smoothing + always return 2 values
+# ==============================================================
+history = []          # (label, risk, timestamp)
+frame_counter = 0
 skip_frames = 1
-alert_triggered = False
-alert_start_time = None
 
 def predict_smooth(frame):
-    global history, frame_count, alert_triggered, alert_start_time
+    global history, frame_counter
+    frame_counter += 1
 
-    frame_count += 1
-    if frame_count % (skip_frames + 1) != 0:
+    # ---- Skip frames for speed ----
+    if frame_counter % (skip_frames + 1) != 0:
         if history:
-            return Counter([h[0] for h in history]).most_common(1)[0][0]
-        return 'safe_driving', 'Safe'
+            most = Counter([h[0] for h in history]).most_common(1)[0][0]
+            risk = next((h[1] for h in history if h[0] == most), "Safe")
+            return most, risk
+        return "safe_driving", "Safe"
 
-    input_tensor = tf.convert_to_tensor(preprocess(frame))
-    pred = predict_fn(input_tensor)[0].numpy()
+    # ---- Real prediction ----
+    inp = tf.convert_to_tensor(preprocess(frame))
+    pred = predict_fn(inp)[0].numpy()
     idx = np.argmax(pred)
     cls = idx_to_class[idx]
     conf = pred[idx]
 
     label, risk = get_final_label(cls, conf)
+
+    # ---- Update history (max 12 entries) ----
     history.append((label, risk, time.time()))
-    if len(history) > 10:
+    if len(history) > 12:
         history.pop(0)
 
-    # Smoothing
+    # ---- Smoothing (≥3 frames) ----
     if len(history) >= 3:
-        most_common = Counter([h[0] for h in history]).most_common(1)[0][0]
-        risk_common = Counter([h[1] for h in history if h[0] == most_common]).most_common(1)[0][0]
-        return most_common, risk_common
+        most = Counter([h[0] for h in history]).most_common(1)[0][0]
+        risk = Counter([h[1] for h in history if h[0] == most]).most_common(1)[0][0]
+        return most, risk
     return label, risk
 
-# ================================
-# Alert System (3 sec non-safe)
-# ================================
-def check_alert(history):
+
+# ==============================================================
+# 5. Alert after 3 sec of non‑safe
+# ==============================================================
+def check_alert():
     if len(history) < 3:
         return False, None
     recent = [h[0] for h in history[-3:]]
-    if all(r != 'safe_driving' for r in recent):
+    if all(r != "safe_driving" for r in recent):
         return True, recent[-1]
     return False, None
 
-# ================================
-# Play Alert Sound
-# ================================
-def play_alert_sound(label):
-    text = f"Warning! Driver is {label.replace('_', ' ')}!"
-    tts = gTTS(text, lang='en')
+
+def play_alert(label):
+    txt = f"Warning! Driver is {label.replace('_', ' ')}!"
+    tts = gTTS(txt, lang="en")
     tts.save("alert.mp3")
-    audio_file = open("alert.mp3", 'rb')
-    audio_bytes = audio_file.read()
-    b64 = base64.b64encode(audio_bytes).decode()
-    audio_html = f"""
-    <audio autoplay="true" style="display:none;">
-        <source src="data:audio/mp3;base64,{b64}" type="audio/mp3">
-    </audio>
-    """
+    with open("alert.mp3", "rb") as f:
+        b64 = base64.b64encode(f.read()).decode()
+    audio_html = f'<audio autoplay><source src="data:audio/mp3;base64,{b64}" type="audio/mp3"></audio>'
     st.markdown(audio_html, unsafe_allow_html=True)
 
-# ================================
-# UI
-# ================================
-st.markdown("<h1 class='main-header'>Driver Behavior Detection</h1>", unsafe_allow_html=True)
-st.markdown("<p class='sub-header'>Real-time AI | Alerts | Stats | Image Upload</p>", unsafe_allow_html=True)
+
+# ==============================================================
+# 6. UI
+# ==============================================================
+st.markdown("<h1 class='big-title'>🚗 Driver Behavior AI</h1>", unsafe_allow_html=True)
+st.markdown("<p class='subtitle'>Real‑time • Alerts • Stats • Image upload</p>", unsafe_allow_html=True)
 
 with st.sidebar:
     st.header("Settings")
-    st.info("Model: CNN (224x224)\nClasses: 10 behaviors\nReal-time alerts")
+    st.info("CNN 224×224 | 10 classes | Smooth inference")
     st.markdown("### Risk Levels")
     st.markdown("- Safe")
     st.markdown("- Moderate Risk")
     st.markdown("- High Risk")
+    st.caption("Built with ❤️ Streamlit + TensorFlow")
 
-tab1, tab2, tab3 = st.tabs(["Live Camera", "Upload Video", "Upload Image"])
+tab_cam, tab_vid, tab_img = st.tabs(["Live Camera", "Upload Video", "Upload Image"])
 
-# ================================
-# Tab 1: Live Camera
-# ================================
-with tab1:
-    st.write("#### Live Real-Time Detection")
-    start_btn = st.button("Start Camera", type="primary", key="cam_start")
-    stop_btn = st.button("Stop", type="secondary", key="cam_stop")
+# ==============================================================
+# 7. Live Camera
+# ==============================================================
+with tab_cam:
+    st.write("#### Real‑time webcam detection")
+    col1, col2 = st.columns([3, 1])
+    with col2:
+        start = st.button("Start", type="primary", key="cam_start")
+        stop = st.button("Stop", type="secondary", key="cam_stop")
 
-    if 'cam_running' not in st.session_state:
-        st.session_state.cam_running = False
-
-    if start_btn:
-        st.session_state.cam_running = True
+    if start:
+        st.session_state.cam = True
         history.clear()
-        alert_triggered = False
+    if stop:
+        st.session_state.cam = False
 
-    if st.session_state.cam_running:
-        stframe = st.empty()
-        status_box = st.empty()
-        alert_box = st.empty()
+    if getattr(st.session_state, "cam", False):
+        frame_placeholder = st.empty()
+        status_placeholder = st.empty()
+        alert_placeholder = st.empty()
+
         cap = cv2.VideoCapture(0)
+        alert_shown = False
 
-        while cap.isOpened() and st.session_state.cam_running:
+        while cap.isOpened() and st.session_state.cam:
             ret, frame = cap.read()
-            if not ret: break
+            if not ret:
+                break
 
             label, risk = predict_smooth(frame)
 
-            # Real-time status
-            status_text = f"Currently: {label.replace('_', ' ').title()}"
+            # ---- Real‑time status card ----
             status_color = "safe" if risk == "Safe" else "warning" if "Moderate" in risk else "danger"
-            status_box.markdown(f"<div class='real-time-status {status_color}'>{status_text}</div>", unsafe_allow_html=True)
+            status_placeholder.markdown(
+                f"<div class='real-time {status_color}'>Current: {label.replace('_', ' ').title()}</div>",
+                unsafe_allow_html=True,
+            )
 
-            # Draw on frame
-            color = (0, 255, 0) if label == 'safe_driving' else (0, 0, 255)
-            if 'drinking' in label: color = (200, 0, 200)
-            if 'hair_makeup' in label: color = (255, 20, 147)
-            cv2.putText(frame, label.replace('_', ' ').title(), (15, 70),
-                        cv2.FONT_HERSHEY_DUPLEX, 2.0, color, 4)
+            # ---- Draw on frame ----
+            col_map = {
+                "safe_driving": (0, 255, 0),
+                "using_phone": (0, 0, 255),
+                "drinking": (200, 0, 200),
+                "hair_makeup": (255, 20, 147),
+                "turning": (0, 255, 255),
+                "radio": (100, 100, 255),
+                "other_activity": (150, 150, 150),
+            }
+            cv2.putText(
+                frame,
+                label.replace("_", " ").title(),
+                (15, 70),
+                cv2.FONT_HERSHEY_DUPLEX,
+                2.0,
+                col_map.get(label, (255, 255, 255)),
+                4,
+            )
 
-            stframe.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), use_column_width=True)
+            frame_placeholder.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), use_column_width=True)
 
-            # Alert check
-            alert, alert_label = check_alert(history)
-            if alert and not alert_triggered:
-                alert_triggered = True
-                alert_box.error(f"ALERT: Driver has been {alert_label.replace('_', ' ')} for 3 seconds!")
-                play_alert_sound(alert_label)
+            # ---- Alert ----
+            alert, alabel = check_alert()
+            if alert and not alert_shown *= 1:
+                alert_shown = True
+                alert_placeholder.error(f"ALERT: {alabel.replace('_', ' ')} for 3 s!")
+                play_alert(alabel)
             elif not alert:
-                alert_triggered = False
+                alert_shown = False
 
         cap.release()
-        st.session_state.cam_running = False
+        st.session_state.cam = False
         st.success("Camera stopped.")
 
-# ================================
-# Tab 2: Upload Video
-# ================================
-with tab2:
-    st.write("#### Upload Video for Analysis")
-    uploaded_file = st.file_uploader("Choose video (MP4, AVI, MOV)", type=["mp4", "avi", "mov"], key="video")
+# ==============================================================
+# 8. Upload Video + Final stats
+# ==============================================================
+with tab_vid:
+    st.write("#### Analyse a video file")
+    vid_file = st.file_uploader("MP4 / AVI / MOV", type=["mp4", "avi", "mov"], key="vid")
 
-    if uploaded_file:
-        tfile = tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(uploaded_file.name)[1])
-        tfile.write(uploaded_file.read())
-        tfile_path = tfile.name
+    if vid_file:
+        tfile = tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(vid_file.name)[1])
+        tfile.write(vid_file.read())
+        tpath = tfile.name
 
-        cap = cv2.VideoCapture(tfile_path)
-        stframe = st.empty()
-        status_box = st.empty()
-        progress_bar = st.progress(0)
-        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        processed = 0
+        cap = cv2.VideoCapture(tpath)
+        total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        prog = st.progress(0)
+        frame_ph = st.empty()
+        status_ph = st.empty()
         history.clear()
 
         while cap.isOpened():
             ret, frame = cap.read()
-            if not ret: break
-
+            if not ret:
+                break
             label, risk = predict_smooth(frame)
-            status_box.markdown(f"<div class='real-time-status {'safe' if risk=='Safe' else 'danger'}'>Detected: {label.replace('_', ' ').title()}</div>", unsafe_allow_html=True)
 
-            color = (0, 255, 0) if label == 'safe_driving' else (0, 0, 255)
-            if 'drinking' in label: color = (200, 0, 200)
-            cv2.putText(frame, label.replace('_', ' ').title(), (15, 70),
-                        cv2.FONT_HERSHEY_DUPLEX, 2.0, color, 4)
+            # status card
+            status_ph.markdown(
+                f"<div class='real-time {'safe' if risk=='Safe' else 'danger'}'>Detected: {label.replace('_',' ').title()}</div>",
+                unsafe_allow_html=True,
+            )
 
-            stframe.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), use_column_width=True)
+            col = (0, 255, 0) if label == "safe_driving" else (0, 0, 255)
+            if "drinking" in label:
+                col = (200, 0, 200)
+            cv2.putText(frame, label.replace("_", " ").title(), (15, 70),
+                        cv2.FONT_HERSHEY_DUPLEX, 2.0, col, 4)
 
-            processed += 1
-            progress_bar.progress(processed / total_frames)
+            frame_ph.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), use_column_width=True)
+            prog.progress(cap.get(cv2.CAP_PROP_POS_FRAMES) / total)
 
         cap.release()
-        os.unlink(tfile_path)
+        os.unlink(tpath)
 
-        # Final Stats
+        # ---- Final statistics ----
         if history:
-            behaviors = [h[0] for h in history]
-            most_common = Counter(behaviors).most_common(1)[0]
-            st.markdown(f"### Final Report")
-            st.markdown(f"**Most frequent behavior**: `{most_common[0].replace('_', ' ').title()}` ({most_common[1]} times)")
+            beh = [h[0] for h in history]
+            most = Counter(beh).most_common(1)[0]
+            st.markdown("### Final Report")
+            st.markdown(
+                f"<div class='stats-box'>"
+                f"<strong>Most frequent behavior:</strong> {most[0].replace('_',' ').title()} <br>"
+                f"<strong>Occurrences:</strong> {most[1]} frames"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
             st.balloons()
         else:
             st.info("No frames processed.")
 
-# ================================
-# Tab 3: Upload Image
-# ================================
-with tab3:
-    st.write("#### Upload Image for Instant Analysis")
-    uploaded_img = st.file_uploader("Choose an image", type=["jpg", "jpeg", "png"], key="img")
+# ==============================================================
+# 9. Upload Image
+# ==============================================================
+with tab_img:
+    st.write("#### Instant image analysis")
+    img_file = st.file_uploader("JPG / PNG", type=["jpg", "jpeg", "png"], key="img")
 
-    if uploaded_img:
-        file_bytes = np.asarray(bytearray(uploaded_img.read()), dtype=np.uint8)
-        img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
-        if img is not None:
-            label, risk = predict_smooth(img)
-            color = (0, 255, 0) if label == 'safe_driving' else (0, 0, 255)
-            if 'drinking' in label: color = (200, 0, 200)
-            cv2.putText(img, label.replace('_', ' ').title(), (15, 70),
-                        cv2.FONT_HERSHEY_DUPLEX, 2.0, color, 4)
-            st.image(cv2.cvtColor(img, cv2.COLOR_BGR2RGB), caption=f"Result: {label.replace('_', ' ').title()} | Risk: {risk}")
-            st.markdown(f"<div class='status-box {'safe' if risk=='Safe' else 'danger'}'>Result: <strong>{label.replace('_', ' ').title()}</strong> | Risk: <strong>{risk}</strong></div>", unsafe_allow_html=True)
+    if img_file:
+        bytes_data = img\_file.read()
+        nparr = np.frombuffer(bytes_data, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if img is None:
+            st.error("Invalid image")
         else:
-            st.error("Invalid image.")
+            label, risk = predict_smooth(img)
+            col = (0, 255, 0) if label == "safe_driving" else (0, 0, 255)
+            if "drinking" in label:
+                col = (200, 0, 200)
+            cv2.putText(img, label.replace("_", " ").title(), (15, 70),
+                        cv2.FONT_HERSHEY_DUPLEX, 2.0, col, 4)
+            st.image(cv2.cvtColor(img, cv2.COLOR_BGR2RGB),
+                     caption=f"{label.replace('_',' ').title()} – {risk}")
+            st.markdown(
+                f"<div class='status-card {'safe' if risk=='Safe' else 'danger'}'>"
+                f"<strong>Result:</strong> {label.replace('_',' ').title()} | <strong>Risk:</strong> {risk}"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
 
-# ================================
-# Footer
-# ================================
-st.markdown("""
+# ==============================================================
+# 10. Footer
+# ==============================================================
+st.markdown(
+    """
 <div class='footer'>
-    <p>Driver Behavior Detection System | Real-time Alerts | Final Stats | Image Support</p>
+    <p>Driver Behavior AI • Real‑time alerts • Final stats • Image support</p>
 </div>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
