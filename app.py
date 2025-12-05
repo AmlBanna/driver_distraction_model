@@ -8,11 +8,12 @@ import os
 import tempfile
 from collections import Counter
 import time
+import base64
 
 # ==============================================================
 # 1. Page config + CSS
 # ==============================================================
-st.set_page_config(page_title="Driver Behavior AI", page_icon="🚗", layout="wide")
+st.set_page_config(page_title="Driver Behavior AI", page_icon="car", layout="wide")
 
 st.markdown(
     """
@@ -26,6 +27,8 @@ st.markdown(
     .stats-box {background:#F8FAFC; padding:1.5rem; border-radius:12px; border:1px solid #E2E8F0; margin:1rem 0;}
     .footer {text-align:center; margin-top:3rem; color:#6B7280; font-size:0.9rem;}
     .metric-card {background:white; padding:1rem; border-radius:10px; text-align:center; box-shadow:0 4px 6px rgba(0,0,0,0.1);}
+    .live-status {font-size:2rem; font-weight:bold; text-align:center; padding:1rem; border-radius:12px; margin:1rem 0;}
+    .stTabs {font-weight: bold;}
 </style>
 """,
     unsafe_allow_html=True,
@@ -38,7 +41,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 model_path = os.path.join(current_dir, "driver_distraction_model.keras")
 json_path = os.path.join(current_dir, "class_indices.json")
 
-@st.cache_resource(show_spinner="🔄 Loading AI model...")
+@st.cache_resource(show_spinner="Loading AI model...")
 def load_model():
     if not os.path.exists(model_path): st.error("Model missing!"); st.stop()
     if not os.path.exists(json_path): st.error("JSON missing!"); st.stop()
@@ -75,172 +78,178 @@ def get_label(cls, conf):
     if cls == "c5" and conf > 0.6: return "radio", "Moderate Risk"
     return "other_activity", "Unknown"
 
-def process_video_with_labels(input_path, output_path):
-    """Process video + add labels + save new video"""
-    cap = cv2.VideoCapture(input_path)
-    fps = int(cap.get(cv2.CAP_PROP_FPS))
-    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
-    
-    predictions = []
-    frame_idx = 0
-    predict_every = 4  # Predict every 4 frames
-    
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if not ret: break
-        
-        frame_idx += 1
-        
-        # Predict every N frames
-        label, risk = "safe_driving", "Safe"
-        if frame_idx % predict_every == 0:
+def draw_label(frame, label, risk):
+    color_map = {
+        "safe_driving": (0, 255, 0),
+        "using_phone": (0, 0, 255),
+        "drinking": (200, 0, 200),
+        "hair_makeup": (255, 20, 147),
+        "turning": (0, 255, 255),
+        "radio": (100, 100, 255),
+        "other_activity": (150, 150, 150)
+    }
+    color = color_map.get(label, (255, 255, 255))
+    h, w = frame.shape[:2]
+    cv2.rectangle(frame, (10, 10), (w-10, 110), color, -1)
+    cv2.putText(frame, label.replace("_", " ").title(), (20, 65),
+                cv2.FONT_HERSHEY_DUPLEX, 2.5, (255, 255, 255), 4)
+    cv2.putText(frame, f"Risk: {risk}", (20, 100),
+                cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 255, 255), 3)
+    return frame
+
+# ==============================================================
+# 4. Tabs
+# ==============================================================
+tab1, tab2, tab3 = st.tabs(["Upload Video", "Live Camera", "Upload Image"])
+
+# ==============================================================
+# TAB 1: Upload Video + 250 Frames Analysis
+# ==============================================================
+with tab1:
+    st.markdown("<h2 class='big-title'>Upload Video</h2>", unsafe_allow_html=True)
+    uploaded_file = st.file_uploader("MP4 only", type=["mp4"], key="vid")
+
+    if uploaded_file:
+        orig_path = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
+        with open(orig_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
+
+        output_path = tempfile.NamedTemporaryFile(delete=False, suffix="_labeled.mp4").name
+
+        cap = cv2.VideoCapture(orig_path)
+        fps = int(cap.get(cv2.CAP_PROP_FPS))
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+
+        predictions = []
+        frame_idx = 0
+        predict_every = 4
+        max_frames_to_analyze = 250
+
+        progress_bar = st.progress(0)
+        status = st.empty()
+
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret or frame_idx >= max_frames_to_analyze: break
+            frame_idx += 1
+
+            label, risk = "safe_driving", "Safe"
+            if frame_idx % predict_every == 0:
+                cls, conf = predict_once(frame)
+                label, risk = get_label(cls, conf)
+                predictions.append((label, risk, frame_idx))
+
+            frame = draw_label(frame, label, risk)
+            out.write(frame)
+            progress_bar.progress(frame_idx / min(total_frames, max_frames_to_analyze))
+
+        cap.release()
+        out.release()
+        progress_bar.empty()
+
+        # === عرض الفيديو ===
+        st.video(output_path)
+
+        # === إحصائيات + 250 فريم ===
+        if predictions:
+            col1, col2, col3, col4 = st.columns(4)
+            labels = [p[0] for p in predictions]
+            counter = Counter(labels)
+            most = counter.most_common(1)[0]
+
+            with col1:
+                st.markdown(f"<div class='metric-card'><h3>Most Common</h3><h2>{most[0].replace('_',' ').title()}</h2><p>{most[1]}x</p></div>", unsafe_allow_html=True)
+            with col2:
+                safe = counter.get("safe_driving", 0)
+                st.markdown(f"<div class='metric-card'><h3>Safe</h3><h2>{safe}x</h2><p>{safe/len(predictions)*100:.0f}%</p></div>", unsafe_allow_html=True)
+            with col3:
+                danger = sum(counter.get(k,0) for k in ["using_phone","drinking","hair_makeup"])
+                st.markdown(f"<div class='metric-card'><h3>High Risk</h3><h2>{danger}x</h2><p>{danger/len(predictions)*100:.0f}%</p></div>", unsafe_allow_html=True)
+            with col4:
+                st.markdown(f"<div class='metric-card'><h3>Total</h3><h2>{len(predictions)}</h2><p>Predictions</p></div>", unsafe_allow_html=True)
+
+            # جدول 250 فريم
+            st.markdown("### First 250 Frames Timeline")
+            timeline = []
+            for i, (label, risk, fidx) in enumerate(predictions):
+                sec = fidx / fps
+                timeline.append({
+                    "Time": f"{sec:.1f}s",
+                    "Frame": fidx,
+                    "Behavior": label.replace("_", " ").title(),
+                    "Risk": "Safe" if risk == "Safe" else "High Risk" if "High" in risk else "Moderate"
+                })
+            st.dataframe(timeline, use_container_width=True, height=400)
+
+            st.balloons()
+
+        os.unlink(orig_path)
+        os.unlink(output_path)
+
+# ==============================================================
+# TAB 2: Live Camera
+# ==============================================================
+with tab2:
+    st.markdown("<h2 class='big-title'>Live Camera</h2>", unsafe_allow_html=True)
+    start_btn = st.button("Start Live Detection", type="primary")
+    stop_btn = st.button("Stop", type="secondary")
+
+    if start_btn:
+        st.session_state.live = True
+    if stop_btn:
+        st.session_state.live = False
+
+    if getattr(st.session_state, "live", False):
+        frame_placeholder = st.empty()
+        status_placeholder = st.empty()
+        cap = cv2.VideoCapture(0)
+        history = []
+
+        while cap.isOpened() and st.session_state.live:
+            ret, frame = cap.read()
+            if not ret: break
+
             cls, conf = predict_once(frame)
             label, risk = get_label(cls, conf)
-            predictions.append((label, risk, frame_idx))
-        
-        # Draw label on frame
-        color_map = {
-            "safe_driving": (0, 255, 0),      # Green
-            "using_phone": (0, 0, 255),       # Red
-            "drinking": (200, 0, 200),        # Purple
-            "hair_makeup": (255, 20, 147),    # Pink
-            "turning": (0, 255, 255),         # Yellow
-            "radio": (100, 100, 255),         # Blue
-            "other_activity": (150, 150, 150) # Gray
-        }
-        color = color_map.get(label, (255, 255, 255))
-        
-        # Big bold label
-        cv2.rectangle(frame, (10, 10), (10 + width//2, 90), color, -1)
-        cv2.putText(frame, label.replace("_", " ").title(), 
-                   (20, 65), cv2.FONT_HERSHEY_DUPLEX, 2.5, (255, 255, 255), 4)
-        cv2.putText(frame, f"Risk: {risk}", 
-                   (20, 100), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 255, 255), 3)
-        
-        out.write(frame)
-    
-    cap.release()
-    out.release()
-    return predictions
+            history.append((label, risk))
+
+            frame = draw_label(frame, label, risk)
+            frame_placeholder.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), use_column_width=True)
+
+            color = "safe" if risk == "Safe" else "danger"
+            status_placeholder.markdown(f"<div class='live-status {color}'>LIVE: {label.replace('_',' ').title()}</div>", unsafe_allow_html=True)
+
+        cap.release()
+        st.session_state.live = False
+        st.success("Live detection stopped.")
 
 # ==============================================================
-# 4. Main UI
+# TAB 3: Upload Image
 # ==============================================================
-st.markdown("<h1 class='big-title'>🚗 Driver Behavior AI</h1>", unsafe_allow_html=True)
-st.markdown("<p class='subtitle'>Real-time labels ON VIDEO + Complete analysis below</p>", unsafe_allow_html=True)
+with tab3:
+    st.markdown("<h2 class='big-title'>Upload Image</h2>", unsafe_allow_html=True)
+    img_file = st.file_uploader("JPG / PNG", type=["jpg", "jpeg", "png"], key="img")
 
-# File upload
-uploaded_file = st.file_uploader("📁 Upload MP4 video (43 seconds recommended)", type=["mp4"])
-
-if uploaded_file is not None:
-    # Progress container
-    progress_container = st.container()
-    
-    # Save original file
-    orig_path = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
-    with open(orig_path, "wb") as f:
-        f.write(uploaded_file.getbuffer())
-    
-    # Process video with labels
-    with progress_container:
-        progress_bar = st.progress(0)
-        status_text = st.empty()
-        
-        status_text.text("🎬 Processing video + AI analysis...")
-        progress_bar.progress(20)
-        
-        # Create output path
-        output_path = tempfile.NamedTemporaryFile(delete=False, suffix="_analyzed.mp4").name
-        
-        # Process!
-        predictions = process_video_with_labels(orig_path, output_path)
-        progress_bar.progress(100)
-        status_text.text("✅ Analysis complete!")
-        time.sleep(0.5)
-    
-    # === عرض الفيديو المتحرك مع التصنيف ===
-    st.markdown("## 🎥 Analyzed Video (Play to see labels)")
-    st.video(output_path)
-    
-    # === الإحصائيات المتقدمة ===
-    if predictions:
-        col1, col2, col3, col4 = st.columns(4)
-        
-        labels = [p[0] for p in predictions]
-        counter = Counter(labels)
-        most_common = counter.most_common(1)[0]
-        total_preds = len(predictions)
-        
-        with col1:
-            st.markdown(f"""
-            <div class='metric-card'>
-                <h3 style='color:#1E3A8A; margin:0;'>🎯 Most Common</h3>
-                <h2 style='color:#1E3A8A; margin:0.5rem 0 0 0;'>{most_common[0].replace('_',' ').title()}</h2>
-                <p style='color:#6B7280; margin:0;'>{most_common[1]}x ({most_common[1]/total_preds*100:.0f}%)</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col2:
-            safe_count = counter.get("safe_driving", 0)
-            st.markdown(f"""
-            <div class='metric-card'>
-                <h3 style='color:#10B981; margin:0;'>✅ Safe Driving</h3>
-                <h2 style='color:#10B981; margin:0.5rem 0 0 0;'>{safe_count}x</h2>
-                <p style='color:#6B7280; margin:0;'>{safe_count/total_preds*100:.0f}%</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col3:
-            danger_count = sum(counter.get(k, 0) for k in ["using_phone", "drinking", "hair_makeup"])
-            st.markdown(f"""
-            <div class='metric-card'>
-                <h3 style='color:#EF4444; margin:0;'>⚠️ High Risk</h3>
-                <h2 style='color:#EF4444; margin:0.5rem 0 0 0;'>{danger_count}x</h2>
-                <p style='color:#6B7280; margin:0;'>{danger_count/total_preds*100:.0f}%</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col4:
-            st.markdown(f"""
-            <div class='metric-card'>
-                <h3 style='color:#3B82F6; margin:0;'>📊 Total</h3>
-                <h2 style='color:#3B82F6; margin:0.5rem 0 0 0;'>{total_preds}</h2>
-                <p style='color:#6B7280; margin:0;'>Predictions</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        # Detailed timeline
-        st.markdown("### 📈 Behavior Timeline (First 25)")
-        timeline_data = []
-        for label, risk, frame_idx in predictions[:25]:
-            time_sec = frame_idx / 30  # Assuming ~30fps
-            risk_emoji = "🟢" if risk == "Safe" else "🟡" if "Moderate" in risk else "🔴"
-            timeline_data.append({
-                "Time": f"{time_sec:.1f}s",
-                "Behavior": label.replace("_", " ").title(),
-                "Risk": risk_emoji
-            })
-        
-        st.dataframe(timeline_data, use_container_width=True)
-        
-        st.balloons()
-    else:
-        st.warning("No predictions made.")
-    
-    # Cleanup
-    os.unlink(orig_path)
-    os.unlink(output_path)
+    if img_file:
+        nparr = np.frombuffer(img_file.read(), np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if img is not None:
+            cls, conf = predict_once(img)
+            label, risk = get_label(cls, conf)
+            img = draw_label(img, label, risk)
+            st.image(cv2.cvtColor(img, cv2.COLOR_BGR2RGB), caption=f"{label.replace('_',' ').title()} | {risk}")
+            st.markdown(f"<div class='status-box {'safe' if risk=='Safe' else 'danger'}'>Result: <strong>{label.replace('_',' ').title()}</strong> | Risk: <strong>{risk}</strong></div>", unsafe_allow_html=True)
 
 # ==============================================================
 # Footer
 # ==============================================================
 st.markdown("""
 <div class='footer'>
-    <p>🚗 Driver Behavior AI | Labels ON VIDEO + Full Analytics | Powered by TensorFlow</p>
+    <p>Driver Behavior AI | Video + Live + Image | 250 Frames Analysis | Powered by TensorFlow</p>
 </div>
 """, unsafe_allow_html=True)
