@@ -13,7 +13,7 @@ import base64
 # ==============================================================
 # 1. Page config + CSS
 # ==============================================================
-st.set_page_config(page_title="Driver Behavior AI", page_icon="car", layout="wide")
+st.set_page_config(page_title="Driver Behavior AI", page_icon="🚗", layout="wide")
 
 st.markdown(
     """
@@ -152,10 +152,8 @@ with tab1:
         out.release()
         progress_bar.empty()
 
-        # === عرض الفيديو ===
         st.video(output_path)
 
-        # === إحصائيات + 250 فريم ===
         if predictions:
             col1, col2, col3, col4 = st.columns(4)
             labels = [p[0] for p in predictions]
@@ -163,13 +161,13 @@ with tab1:
             most = counter.most_common(1)[0]
 
             with col1:
-                st.markdown(f"<div class='metric-card'><h3>Most Common</h3><h2>{most[0].replace('_',' ').title()}</h2><p>{most[1]}x</p></div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='metric-card'><h3> Most Common</h3><h2>{most[0].replace('_',' ').title()}</h2><p>{most[1]}x</p></div>", unsafe_allow_html=True)
             with col2:
                 safe = counter.get("safe_driving", 0)
-                st.markdown(f"<div class='metric-card'><h3>Safe</h3><h2>{safe}x</h2><p>{safe/len(predictions)*100:.0f}%</p></div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='metric-card'><h3>✅Safe</h3><h2>{safe}x</h2><p>{safe/len(predictions)*100:.0f}%</p></div>", unsafe_allow_html=True)
             with col3:
                 danger = sum(counter.get(k,0) for k in ["using_phone","drinking","hair_makeup"])
-                st.markdown(f"<div class='metric-card'><h3>High Risk</h3><h2>{danger}x</h2><p>{danger/len(predictions)*100:.0f}%</p></div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='metric-card'><h3> ⚠ High Risk</h3><h2>{danger}x</h2><p>{danger/len(predictions)*100:.0f}%</p></div>", unsafe_allow_html=True)
             with col4:
                 st.markdown(f"<div class='metric-card'><h3>Total</h3><h2>{len(predictions)}</h2><p>Predictions</p></div>", unsafe_allow_html=True)
 
@@ -250,6 +248,6 @@ with tab3:
 # ==============================================================
 st.markdown("""
 <div class='footer'>
-    <p>Driver Behavior AI | Video + Live + Image | 250 Frames Analysis | Powered by TensorFlow</p>
+    <p>Driver Behavior AI | Video + Live + Image  | Powered by TensorFlow</p>
 </div>
 """, unsafe_allow_html=True)
