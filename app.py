@@ -11,24 +11,50 @@ import time
 import base64
 
 # ==============================================================
-# 1. Page config + CSS
+# 1. Page config + CSS (محسّنة + أيقونات + أنيميشن)
 # ==============================================================
 st.set_page_config(page_title="Driver Behavior AI", page_icon="car", layout="wide")
 
 st.markdown(
     """
 <style>
-    .big-title {font-size:3.2rem; font-weight:800; color:#1E3A8A; text-align:center; margin-bottom:0.5rem;}
-    .subtitle {font-size:1.4rem; color:#4B5563; text-align:center; margin-bottom:2rem;}
-    .status-box {padding:1.2rem; border-radius:12px; font-weight:bold; text-align:center; margin:1rem 0; font-size:1.4rem;}
-    .safe {background:#DCFCE7; color:#166534; border:2px solid #BBF7D0;}
-    .danger {background:#FECACA; color:#991B1B; border:2px solid #FCA5A5;}
-    .warning {background:#FEF3C7; color:#92400E; border:2px solid #FDE68A;}
-    .stats-box {background:#F8FAFC; padding:1.5rem; border-radius:12px; border:1px solid #E2E8F0; margin:1rem 0;}
-    .footer {text-align:center; margin-top:3rem; color:#6B7280; font-size:0.9rem;}
-    .metric-card {background:white; padding:1rem; border-radius:10px; text-align:center; box-shadow:0 4px 6px rgba(0,0,0,0.1);}
-    .live-status {font-size:2rem; font-weight:bold; text-align:center; padding:1rem; border-radius:12px; margin:1rem 0;}
-    .stTabs {font-weight: bold;}
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@700;600;400&display=swap');
+    
+    * {font-family: 'Poppins', sans-serif;}
+    
+    .big-title {font-size:3.5rem; font-weight:800; color:#1E3A8A; text-align:center; margin-bottom:0.5rem; 
+                background: linear-gradient(90deg, #1E3A8A, #3B82F6); -webkit-background-clip: text; -webkit-text-fill-color: transparent;}
+    .subtitle {font-size:1.5rem; color:#4B5563; text-align:center; margin-bottom:2rem; font-weight:600;}
+    
+    .status-box {padding:1.4rem; border-radius:16px; font-weight:bold; text-align:center; margin:1.2rem 0; font-size:1.5rem; 
+                 box-shadow: 0 6px 12px rgba(0,0,0,0.1);}
+    .safe {background: linear-gradient(135deg, #BBF7D0, #DCFCE7); color:#166534; border:3px solid #86EFAC;}
+    .danger {background: linear-gradient(135deg, #FCA5A5, #FECACA); color:#991B1B; border:3px solid #F87171;}
+    .warning {background: linear-gradient(135deg, #FDE68A, #FEF3C7); color:#92400E; border:3px solid #FBBF24;}
+    
+    .stats-box {background: linear-gradient(135deg, #F8FAFC, #F1F5F9); padding:1.8rem; border-radius:16px; 
+                border:2px solid #E2E8F0; margin:1.5rem 0; box-shadow: 0 8px 16px rgba(0,0,0,0.08);}
+    .metric-card {background: white; padding:1.4rem; border-radius:14px; text-align:center; 
+                  box-shadow: 0 6px 12px rgba(0,0,0,0.1); transition: all 0.3s; border: 1px solid #E5E7EB;}
+    .metric-card:hover {transform: translateY(-5px); box-shadow: 0 12px 20px rgba(0,0,0,0.15);}
+    
+    .live-status {font-size:2.2rem; font-weight:bold; text-align:center; padding:1.2rem; border-radius:16px; 
+                  margin:1.2rem 0; box-shadow: 0 6px 12px rgba(0,0,0,0.15);}
+    
+    .stTabs {font-weight: bold; font-size:1.3rem;}
+    .stTabs > div > div > div > div {background: #1E3A8A; color: white; border-radius: 12px; padding: 0.8rem 1.5rem;}
+    
+    .footer {text-align:center; margin-top:4rem; color:#6B7280; font-size:1rem; font-weight:500;}
+    
+    .video-container {border-radius: 16px; overflow: hidden; box-shadow: 0 10px 20px rgba(0,0,0,0.2); margin: 1.5rem 0;}
+    .upload-box {border: 3px dashed #3B82F6; border-radius: 16px; padding: 2rem; text-align: center; background: #F8FAFC;}
+    
+    @keyframes pulse {
+        0% {box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.5);}
+        70% {box-shadow: 0 0 0 15px rgba(59, 130, 246, 0);}
+        100% {box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);}
+    }
+    .pulse {animation: pulse 2s infinite;}
 </style>
 """,
     unsafe_allow_html=True,
@@ -90,11 +116,11 @@ def draw_label(frame, label, risk):
     }
     color = color_map.get(label, (255, 255, 255))
     h, w = frame.shape[:2]
-    cv2.rectangle(frame, (10, 10), (w-10, 110), color, -1)
-    cv2.putText(frame, label.replace("_", " ").title(), (20, 65),
-                cv2.FONT_HERSHEY_DUPLEX, 2.5, (255, 255, 255), 4)
-    cv2.putText(frame, f"Risk: {risk}", (20, 100),
-                cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 255, 255), 3)
+    cv2.rectangle(frame, (10, 10), (w-10, 120), color, -1)
+    cv2.putText(frame, label.replace("_", " ").title(), (25, 70),
+                cv2.FONT_HERSHEY_DUPLEX, 2.8, (255, 255, 255), 5)
+    cv2.putText(frame, f"Risk: {risk}", (25, 110),
+                cv2.FONT_HERSHEY_SIMPLEX, 1.3, (255, 255, 255), 3)
     return frame
 
 # ==============================================================
@@ -107,17 +133,20 @@ tab1, tab2, tab3 = st.tabs(["Upload Video", "Live Camera", "Upload Image"])
 # ==============================================================
 with tab1:
     st.markdown("<h2 class='big-title'>Upload Video</h2>", unsafe_allow_html=True)
-    uploaded_file = st.file_uploader("MP4 only", type=["mp4"], key="vid")
+    st.markdown("<p class='subtitle'>AI will analyze first 250 frames and show labels on video</p>", unsafe_allow_html=True)
+    
+    uploaded_file = st.file_uploader("**Drop your MP4 video here**", type=["mp4"], key="vid", help="Max 200MB")
 
     if uploaded_file:
+        # Save & process
         orig_path = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
         with open(orig_path, "wb") as f:
             f.write(uploaded_file.getbuffer())
 
-        output_path = tempfile.NamedTemporaryFile(delete=False, suffix="_labeled.mp4").name
+        output_path = tempfile.NamedTemporaryFile(delete=False, suffix="_ai.mp4").name
 
         cap = cv2.VideoCapture(orig_path)
-        fps = int(cap.get(cv2.CAP_PROP_FPS))
+        fps = int(cap.get(cv2.CAP_PROP_FPS)) or 30
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -130,8 +159,11 @@ with tab1:
         predict_every = 4
         max_frames_to_analyze = 250
 
-        progress_bar = st.progress(0)
-        status = st.empty()
+        progress_container = st.container()
+        with progress_container:
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            status_text.markdown("**Analyzing video...**")
 
         while cap.isOpened():
             ret, frame = cap.read()
@@ -151,9 +183,13 @@ with tab1:
         cap.release()
         out.release()
         progress_bar.empty()
+        status_text.success("Analysis Complete!")
 
-        # === عرض الفيديو ===
+        # === عرض الفيديو بالتنبؤ ===
+        st.markdown("## Analyzed Video")
+        st.markdown("<div class='video-container'>", unsafe_allow_html=True)
         st.video(output_path)
+        st.markdown("</div>", unsafe_allow_html=True)
 
         # === إحصائيات + 250 فريم ===
         if predictions:
@@ -163,7 +199,7 @@ with tab1:
             most = counter.most_common(1)[0]
 
             with col1:
-                st.markdown(f"<div class='metric-card'><h3>Most Common</h3><h2>{most[0].replace('_',' ').title()}</h2><p>{most[1]}x</p></div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='metric-card pulse'><h3>Most Common</h3><h2>{most[0].replace('_',' ').title()}</h2><p>{most[1]}x</p></div>", unsafe_allow_html=True)
             with col2:
                 safe = counter.get("safe_driving", 0)
                 st.markdown(f"<div class='metric-card'><h3>Safe</h3><h2>{safe}x</h2><p>{safe/len(predictions)*100:.0f}%</p></div>", unsafe_allow_html=True)
@@ -173,7 +209,6 @@ with tab1:
             with col4:
                 st.markdown(f"<div class='metric-card'><h3>Total</h3><h2>{len(predictions)}</h2><p>Predictions</p></div>", unsafe_allow_html=True)
 
-            # جدول 250 فريم
             st.markdown("### First 250 Frames Timeline")
             timeline = []
             for i, (label, risk, fidx) in enumerate(predictions):
@@ -184,7 +219,7 @@ with tab1:
                     "Behavior": label.replace("_", " ").title(),
                     "Risk": "Safe" if risk == "Safe" else "High Risk" if "High" in risk else "Moderate"
                 })
-            st.dataframe(timeline, use_container_width=True, height=400)
+            st.dataframe(timeline, use_container_width=True, height=450)
 
             st.balloons()
 
@@ -196,9 +231,13 @@ with tab1:
 # ==============================================================
 with tab2:
     st.markdown("<h2 class='big-title'>Live Camera</h2>", unsafe_allow_html=True)
-    start_btn = st.button("Start Live Detection", type="primary")
-    stop_btn = st.button("Stop", type="secondary")
-
+    st.markdown("<p class='subtitle'>Real-time AI detection from your webcam</p>", unsafe_allow_html=True)
+    
+    col1, col2 = st.columns([1, 3])
+    with col1:
+        start_btn = st.button("Start Live", type="primary", use_column_width=True)
+        stop_btn = st.button("Stop", type="secondary", use_column_width=True)
+    
     if start_btn:
         st.session_state.live = True
     if stop_btn:
@@ -208,7 +247,10 @@ with tab2:
         frame_placeholder = st.empty()
         status_placeholder = st.empty()
         cap = cv2.VideoCapture(0)
-        history = []
+        
+        if not cap.isOpened():
+            st.error("Cannot access camera. Please check permissions.")
+            st.stop()
 
         while cap.isOpened() and st.session_state.live:
             ret, frame = cap.read()
@@ -216,13 +258,12 @@ with tab2:
 
             cls, conf = predict_once(frame)
             label, risk = get_label(cls, conf)
-            history.append((label, risk))
-
             frame = draw_label(frame, label, risk)
+            
             frame_placeholder.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), use_column_width=True)
-
-            color = "safe" if risk == "Safe" else "danger"
-            status_placeholder.markdown(f"<div class='live-status {color}'>LIVE: {label.replace('_',' ').title()}</div>", unsafe_allow_html=True)
+            
+            color_class = "safe" if risk == "Safe" else "danger"
+            status_placeholder.markdown(f"<div class='live-status {color_class}'>LIVE: {label.replace('_',' ').title()}</div>", unsafe_allow_html=True)
 
         cap.release()
         st.session_state.live = False
@@ -233,7 +274,9 @@ with tab2:
 # ==============================================================
 with tab3:
     st.markdown("<h2 class='big-title'>Upload Image</h2>", unsafe_allow_html=True)
-    img_file = st.file_uploader("JPG / PNG", type=["jpg", "jpeg", "png"], key="img")
+    st.markdown("<p class='subtitle'>Instant AI analysis of a single frame</p>", unsafe_allow_html=True)
+    
+    img_file = st.file_uploader("**Drop image here**", type=["jpg", "jpeg", "png"], key="img")
 
     if img_file:
         nparr = np.frombuffer(img_file.read(), np.uint8)
@@ -242,7 +285,7 @@ with tab3:
             cls, conf = predict_once(img)
             label, risk = get_label(cls, conf)
             img = draw_label(img, label, risk)
-            st.image(cv2.cvtColor(img, cv2.COLOR_BGR2RGB), caption=f"{label.replace('_',' ').title()} | {risk}")
+            st.image(cv2.cvtColor(img, cv2.COLOR_BGR2RGB), use_column_width=True)
             st.markdown(f"<div class='status-box {'safe' if risk=='Safe' else 'danger'}'>Result: <strong>{label.replace('_',' ').title()}</strong> | Risk: <strong>{risk}</strong></div>", unsafe_allow_html=True)
 
 # ==============================================================
@@ -250,6 +293,8 @@ with tab3:
 # ==============================================================
 st.markdown("""
 <div class='footer'>
-    <p>Driver Behavior AI | Video + Live + Image | 250 Frames Analysis | Powered by TensorFlow</p>
+    <p>Driver Behavior AI | Video + Live + Image | 250 Frames Analysis | Powered by <strong>TensorFlow</strong> & <strong>Streamlit</strong></p>
 </div>
 """, unsafe_allow_html=True)
+
+st.balloons()
