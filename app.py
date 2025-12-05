@@ -8,53 +8,84 @@ import os
 import tempfile
 from collections import Counter
 import time
-import base64
 
 # ==============================================================
-# 1. Page config + CSS (محسّنة + أيقونات + أنيميشن)
+# 1. Page configInstagram + ألوان بناتي أنيقة
 # ==============================================================
-st.set_page_config(page_title="Driver Behavior AI", page_icon="car", layout="wide")
+st.set_page_config(page_title="Driver Behavior AI", page_icon="sparkles", layout="wide")
 
 st.markdown(
     """
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@700;600;400&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
     
     * {font-family: 'Poppins', sans-serif;}
     
-    .big-title {font-size:3.5rem; font-weight:800; color:#1E3A8A; text-align:center; margin-bottom:0.5rem; 
-                background: linear-gradient(90deg, #1E3A8A, #3B82F6); -webkit-background-clip: text; -webkit-text-fill-color: transparent;}
-    .subtitle {font-size:1.5rem; color:#4B5563; text-align:center; margin-bottom:2rem; font-weight:600;}
-    
-    .status-box {padding:1.4rem; border-radius:16px; font-weight:bold; text-align:center; margin:1.2rem 0; font-size:1.5rem; 
-                 box-shadow: 0 6px 12px rgba(0,0,0,0.1);}
-    .safe {background: linear-gradient(135deg, #BBF7D0, #DCFCE7); color:#166534; border:3px solid #86EFAC;}
-    .danger {background: linear-gradient(135deg, #FCA5A5, #FECACA); color:#991B1B; border:3px solid #F87171;}
-    .warning {background: linear-gradient(135deg, #FDE68A, #FEF3C7); color:#92400E; border:3px solid #FBBF24;}
-    
-    .stats-box {background: linear-gradient(135deg, #F8FAFC, #F1F5F9); padding:1.8rem; border-radius:16px; 
-                border:2px solid #E2E8F0; margin:1.5rem 0; box-shadow: 0 8px 16px rgba(0,0,0,0.08);}
-    .metric-card {background: white; padding:1.4rem; border-radius:14px; text-align:center; 
-                  box-shadow: 0 6px 12px rgba(0,0,0,0.1); transition: all 0.3s; border: 1px solid #E5E7EB;}
-    .metric-card:hover {transform: translateY(-5px); box-shadow: 0 12px 20px rgba(0,0,0,0.15);}
-    
-    .live-status {font-size:2.2rem; font-weight:bold; text-align:center; padding:1.2rem; border-radius:16px; 
-                  margin:1.2rem 0; box-shadow: 0 6px 12px rgba(0,0,0,0.15);}
-    
-    .stTabs {font-weight: bold; font-size:1.3rem;}
-    .stTabs > div > div > div > div {background: #1E3A8A; color: white; border-radius: 12px; padding: 0.8rem 1.5rem;}
-    
-    .footer {text-align:center; margin-top:4rem; color:#6B7280; font-size:1rem; font-weight:500;}
-    
-    .video-container {border-radius: 16px; overflow: hidden; box-shadow: 0 10px 20px rgba(0,0,0,0.2); margin: 1.5rem 0;}
-    .upload-box {border: 3px dashed #3B82F6; border-radius: 16px; padding: 2rem; text-align: center; background: #F8FAFC;}
-    
-    @keyframes pulse {
-        0% {box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.5);}
-        70% {box-shadow: 0 0 0 15px rgba(59, 130, 246, 0);}
-        100% {box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);}
+    .big-title {
+        font-size:3.5rem; font-weight:700; 
+        background: linear-gradient(90deg, #D946EF, #EC4899, #F43F5E); 
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        text-align:center; margin-bottom:0.5rem;
     }
-    .pulse {animation: pulse 2s infinite;}
+    .subtitle {
+        font-size:1.5rem; color:#6B7280; text-align:center; margin-bottom:2rem; font-weight:400;
+    }
+    
+    .status-box {
+        padding:1.4rem; border-radius:18px; font-weight:600; text-align:center; 
+        margin:1.2rem 0; font-size:1.5rem; 
+        box-shadow: 0 6px 16px rgba(236, 72, 153, 0.15);
+    }
+    .safe {background: linear-gradient(135deg, #FCE7F3, #FCE7F3); color:#BE185D; border:3px solid #FBCFE8;}
+    .danger {background: linear-gradient(135deg, #FECACA, #FCA5A5); color:#991B1B; border:3px solid #F87171;}
+    .warning {background: linear-gradient(135deg, #FEF3C7, #FDE68A); color:#92400E; border:3px solid #FBBF24;}
+    
+    .stats-box {
+        background: #FDF2F8; padding:1.8rem; border-radius:18px; 
+        border:2px solid #FCE7F3; margin:1.5rem 0; box-shadow: 0 8px 20px rgba(236, 72, 153, 0.1);
+    }
+    .metric-card {
+        background: white; padding:1.4rem; border-radius:16px; text-align:center; 
+        box-shadow: 0 6px 14px rgba(236, 72, 153, 0.12); 
+        border: 1px solid #FCE7F3; transition: all 0.3s;
+    }
+    .metric-card:hover {
+        transform: translateY(-6px); box-shadow: 0 12px 24px rgba(236, 72, 153, 0.18);
+    }
+    
+    .live-status {
+        font-size:2.3rem; font-weight:700; text-align:center; padding:1.3rem; 
+        border-radius:18px; margin:1.3rem 0; 
+        background: linear-gradient(135deg, #FDF2F8, #FCE7F3);
+        box-shadow: 0 8px 18px rgba(236, 72, 153, 0.2);
+    }
+    
+    .stTabs > div > div > div > div {
+        background: linear-gradient(90deg, #EC4899, #F43F5E); 
+        color: white; border-radius: 14px; padding: 0.9rem 1.8rem; font-weight:600;
+    }
+    
+    .footer {
+        text-align:center; margin-top:4rem; color:#9CA3AF; font-size:1rem; font-weight:400;
+    }
+    
+    .video-container {
+        border-radius: 20px; overflow: hidden; 
+        box-shadow: 0 12px 28px rgba(236, 72, 153, 0.2); margin: 1.8rem 0;
+        border: 3px solid #FCE7F3;
+    }
+    
+    .upload-box {
+        border: 3px dashed #F43F5E; border-radius: 20px; padding: 2.5rem; 
+        text-align: center; background: #FDF2F8; font-weight:600; color:#BE185D;
+    }
+    
+    @keyframes glow {
+        0% {box-shadow: 0 0 5px #F43F5E;}
+        50% {box-shadow: 0 0 20px #EC4899, 0 0 30px #F43F5E;}
+        100% {box-shadow: 0 0 5px #F43F5E;}
+    }
+    .glow {animation: glow 2s infinite;}
 </style>
 """,
     unsafe_allow_html=True,
@@ -106,13 +137,13 @@ def get_label(cls, conf):
 
 def draw_label(frame, label, risk):
     color_map = {
-        "safe_driving": (0, 255, 0),
-        "using_phone": (0, 0, 255),
-        "drinking": (200, 0, 200),
-        "hair_makeup": (255, 20, 147),
-        "turning": (0, 255, 255),
-        "radio": (100, 100, 255),
-        "other_activity": (150, 150, 150)
+        "safe_driving": (255, 182, 193),     # Light Pink
+        "using_phone": (239, 68, 68),        # Red
+        "drinking": (147, 51, 234),          # Purple
+        "hair_makeup": (236, 72, 153),       # Hot Pink
+        "turning": (251, 146, 60),           # Orange
+        "radio": (147, 197, 253),            # Light Blue
+        "other_activity": (209, 213, 219)    # Gray
     }
     color = color_map.get(label, (255, 255, 255))
     h, w = frame.shape[:2]
@@ -129,16 +160,15 @@ def draw_label(frame, label, risk):
 tab1, tab2, tab3 = st.tabs(["Upload Video", "Live Camera", "Upload Image"])
 
 # ==============================================================
-# TAB 1: Upload Video + 250 Frames Analysis
+# TAB 1: Upload Video + 250 Frames
 # ==============================================================
 with tab1:
     st.markdown("<h2 class='big-title'>Upload Video</h2>", unsafe_allow_html=True)
-    st.markdown("<p class='subtitle'>AI will analyze first 250 frames and show labels on video</p>", unsafe_allow_html=True)
+    st.markdown("<p class='subtitle'>AI will analyze first 250 frames with elegant labels</p>", unsafe_allow_html=True)
     
-    uploaded_file = st.file_uploader("**Drop your MP4 video here**", type=["mp4"], key="vid", help="Max 200MB")
+    uploaded_file = st.file_uploader("", type=["mp4"], key="vid", help="Max 200MB")
 
     if uploaded_file:
-        # Save & process
         orig_path = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
         with open(orig_path, "wb") as f:
             f.write(uploaded_file.getbuffer())
@@ -163,7 +193,7 @@ with tab1:
         with progress_container:
             progress_bar = st.progress(0)
             status_text = st.empty()
-            status_text.markdown("**Analyzing video...**")
+            status_text.markdown("**Analyzing with AI...**")
 
         while cap.isOpened():
             ret, frame = cap.read()
@@ -185,13 +215,11 @@ with tab1:
         progress_bar.empty()
         status_text.success("Analysis Complete!")
 
-        # === عرض الفيديو بالتنبؤ ===
         st.markdown("## Analyzed Video")
         st.markdown("<div class='video-container'>", unsafe_allow_html=True)
         st.video(output_path)
         st.markdown("</div>", unsafe_allow_html=True)
 
-        # === إحصائيات + 250 فريم ===
         if predictions:
             col1, col2, col3, col4 = st.columns(4)
             labels = [p[0] for p in predictions]
@@ -199,7 +227,7 @@ with tab1:
             most = counter.most_common(1)[0]
 
             with col1:
-                st.markdown(f"<div class='metric-card pulse'><h3>Most Common</h3><h2>{most[0].replace('_',' ').title()}</h2><p>{most[1]}x</p></div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='metric-card glow'><h3>Most Common</h3><h2>{most[0].replace('_',' ').title()}</h2><p>{most[1]}x</p></div>", unsafe_allow_html=True)
             with col2:
                 safe = counter.get("safe_driving", 0)
                 st.markdown(f"<div class='metric-card'><h3>Safe</h3><h2>{safe}x</h2><p>{safe/len(predictions)*100:.0f}%</p></div>", unsafe_allow_html=True)
@@ -227,17 +255,18 @@ with tab1:
         os.unlink(output_path)
 
 # ==============================================================
-# TAB 2: Live Camera
+# TAB 2: Live Camera (تم إصلاح الأزرار)
 # ==============================================================
 with tab2:
     st.markdown("<h2 class='big-title'>Live Camera</h2>", unsafe_allow_html=True)
-    st.markdown("<p class='subtitle'>Real-time AI detection from your webcam</p>", unsafe_allow_html=True)
+    st.markdown("<p class='subtitle'>Real-time detection with elegant overlay</p>", unsafe_allow_html=True)
     
-    col1, col2 = st.columns([1, 3])
+    col1, col2 = st.columns(2)
     with col1:
-        start_btn = st.button("Start Live", type="primary", use_column_width=True)
-        stop_btn = st.button("Stop", type="secondary", use_column_width=True)
-    
+        start_btn = st.button("Start Live", type="primary")
+    with col2:
+        stop_btn = st.button("Stop", type="secondary")
+
     if start_btn:
         st.session_state.live = True
     if stop_btn:
@@ -249,7 +278,7 @@ with tab2:
         cap = cv2.VideoCapture(0)
         
         if not cap.isOpened():
-            st.error("Cannot access camera. Please check permissions.")
+            st.error("Cannot access camera.")
             st.stop()
 
         while cap.isOpened() and st.session_state.live:
@@ -274,9 +303,9 @@ with tab2:
 # ==============================================================
 with tab3:
     st.markdown("<h2 class='big-title'>Upload Image</h2>", unsafe_allow_html=True)
-    st.markdown("<p class='subtitle'>Instant AI analysis of a single frame</p>", unsafe_allow_html=True)
+    st.markdown("<p class='subtitle'>Instant elegant analysis</p>", unsafe_allow_html=True)
     
-    img_file = st.file_uploader("**Drop image here**", type=["jpg", "jpeg", "png"], key="img")
+    img_file = st.file_uploader("", type=["jpg", "jpeg", "png"], key="img")
 
     if img_file:
         nparr = np.frombuffer(img_file.read(), np.uint8)
@@ -293,7 +322,7 @@ with tab3:
 # ==============================================================
 st.markdown("""
 <div class='footer'>
-    <p>Driver Behavior AI | Video + Live + Image | 250 Frames Analysis | Powered by <strong>TensorFlow</strong> & <strong>Streamlit</strong></p>
+    <p>Driver Behavior AI | Elegant • Feminine • Smart | Powered by <strong>TensorFlow</strong> & <strong>Streamlit</strong></p>
 </div>
 """, unsafe_allow_html=True)
 
